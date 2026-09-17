@@ -1726,6 +1726,31 @@ There is no region or continent condition of any kind. Keeping the postings in
 Europe means naming the countries yourself and running filter once per country,
 because --country holds one country at a time.`,
 
+  ats: `Scores each posting by the skills its text names that the person's resume also
+names, the way an applicant tracking system reads the two, and lists the skills
+that matched and the ones the resume is missing, each with how often the resume
+says it and how often the posting does. Give the posting ids, or pipe in the JSON
+another command printed. The score is out of 100 and weighs a skill more when the
+posting repeats it or puts it in the job title.
+
+It makes no model call and spends no judgment. The posting records come the way
+"pinloop fetch" gets them and the resume's words the way "pinloop profile get
+resume --text" gets them, so over postings this account already holds it costs
+nothing, and it can run over every posting the account has. --resume <file> reads
+the resume from a text file instead of the stored one. --keep <score> hands on
+only the postings at or above that score, and says on standard error which were
+dropped, so "pinloop viewed --json | pinloop ats --keep 60 --json | pinloop judge"
+spends judgments only on the postings whose skills already overlap. --json prints
+the scored rows, each carrying ats_score, ats_matched and ats_missing.
+
+The skills it knows are a fixed list, weighted toward software testing and
+software work in general, plus any tool name or acronym the posting itself writes
+in capitals more than once. A missing skill is a word to consider adding to the
+resume where it is true, and never a word to add where it is not. A high score
+says the words overlap, not that the person fits: a judgment reads the meaning
+and this reads the words, so use this to choose what to judge, not instead of
+judging.`,
+
   judge: `Reads postings against this account's stored documents and stores a verdict for
 each one, with the reasoning behind it. Give the posting ids, or pipe in the JSON
 another command printed. A verdict is one of four words: no, weak, fair or

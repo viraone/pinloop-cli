@@ -1,3 +1,7 @@
 node_modules/
 dist/
 *.tgz
+daily/.venv/
+daily/logs/
+daily/state.json
+daily/background.txt

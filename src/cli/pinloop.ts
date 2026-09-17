@@ -70,6 +70,7 @@ import { basename, join } from 'node:path';
 import { isatty } from 'node:tty';
 import { Command, Option } from 'commander';
 
+import { scoreResume, type SkillHit } from '../shared/ats.ts';
 import { coverageOf, type Coverage } from '../shared/coverage.ts';
 import { runFilter, type FilterRules } from '../shared/filter.ts';
 import { buildGuide, NON_COMMAND_PARTS } from '../shared/guide.ts';
@@ -3991,6 +3992,134 @@ export function buildProgram(): Command {
         return;
       }
       for (const card of survivors) printCard(card as unknown as Card);
+    });
+
+  /**
+   * Keyword matching against the resume, the way an applicant tracking system
+   * reads the two (src/shared/ats.ts). It spends no judgment: the posting
+   * records come from the same route `fetch` uses, and the resume's words from
+   * the same route `profile get --text` uses, so over postings this account
+   * already holds it costs nothing at all.
+   */
+  program
+    .command('ats')
+    .description(
+      'score each posting by the skills it names that your resume also names, and list the missing ones',
+    )
+    .argument(
+      '[ids...]',
+      'the posting ids to score; with none, they are read from the JSON piped in, ' +
+        'for example: pinloop viewed --json | pinloop ats',
+    )
+    .option(
+      '--resume <file>',
+      'read the resume from this text file instead of the resume stored in your profile',
+    )
+    .option(
+      '--keep <score>',
+      'hand on only postings scoring at or above this number out of 100, so a following command sees only those',
+    )
+    .option('--json', 'print one JSON object holding the scored rows, instead of a readable view')
+    .action(async (ids: string[], options: Record<string, string | boolean | undefined>) => {
+      const pass = readPass();
+      const wanted = await typedIdsOrPipedIn('pinloop ats', ids);
+      const keepAt = options['keep'] === undefined ? undefined : Number(options['keep']);
+      if (keepAt !== undefined && (!Number.isFinite(keepAt) || keepAt < 0 || keepAt > 100)) {
+        throw new Failure(`--keep takes a number from 0 to 100; "${String(options['keep'])}" is not one`);
+      }
+
+      let resume: string;
+      const resumeFile = textOption(options['resume']);
+      if (resumeFile !== undefined) {
+        if (!existsSync(resumeFile)) throw new Failure(`no file at ${resumeFile}`);
+        resume = readFileSync(resumeFile, 'utf8');
+      } else {
+        nowDoing('reading your resume');
+        const answer = await callAsAccount(
+          pass,
+          `/profile/${encodeURIComponent('resume')}?include=text`,
+        );
+        const document = rowsOf(answer.json)[0];
+        if (!document || typeof document['text'] !== 'string' || document['text'].trim() === '') {
+          throw new Failure(
+            'no resume text is stored in your profile. Store one with "pinloop profile put resume ' +
+              '--file <path.pdf>", or give a text file here with --resume <file>.',
+          );
+        }
+        resume = document['text'];
+      }
+
+      nowDoing('fetching');
+      const { json } = await callAsAccount(pass, '/fetch', {
+        method: 'POST',
+        body: { ids: wanted.join(',') },
+      });
+      const notFound = Array.isArray(json?.not_found) ? json.not_found : [];
+
+      const scored = rowsOf(json)
+        .map((row) => {
+          const report = scoreResume(
+            String(row['title'] ?? ''),
+            String(row['description_text'] ?? ''),
+            resume,
+            String(row['company'] ?? ''),
+          );
+          return {
+            id: String(row['id'] ?? ''),
+            title: row['title'],
+            company: row['company'],
+            locations: row['locations'],
+            posted_at: row['posted_at'],
+            url: row['posting_url'],
+            ats_score: report.score,
+            ats_matched: report.matched,
+            ats_missing: report.missing,
+          };
+        })
+        .sort((a, b) => b.ats_score - a.ats_score);
+
+      const survivors = keepAt === undefined ? scored : scored.filter((row) => row.ats_score >= keepAt);
+      const dropped = scored.filter((row) => !survivors.includes(row));
+
+      for (const missing of notFound) {
+        process.stderr.write(`${String(missing)}: no posting with that id\n`);
+      }
+      if (keepAt !== undefined) {
+        process.stderr.write(
+          `${survivors.length} of ${scored.length} postings scored ${keepAt} or above.\n`,
+        );
+        for (const row of dropped) {
+          process.stderr.write(
+            `dropped ${namePosting(row.id, String(row.title ?? ''), String(row.company ?? ''))}: scored ${row.ats_score}\n`,
+          );
+        }
+      }
+
+      if (options['json']) {
+        printJson({ rows: survivors, not_found: notFound });
+        return;
+      }
+
+      const tally = (hit: SkillHit): string => `${hit.keyword} ${hit.resume}/${hit.posting}`;
+      for (const row of survivors) {
+        const matched = row.ats_matched;
+        const missing = row.ats_missing;
+        const named = matched.length + missing.length;
+        process.stdout.write(
+          `${String(row.ats_score).padStart(3)}  ${String(row.title ?? '')} — ${String(row.company ?? '')}\n`,
+        );
+        process.stdout.write(`     ${row.id}\n`);
+        if (named === 0) {
+          process.stdout.write('     the posting names no skill this scoring knows\n\n');
+          continue;
+        }
+        process.stdout.write(
+          `     matched ${matched.length} of ${named} (resume/posting): ${matched.map(tally).join(', ') || 'none'}\n`,
+        );
+        process.stdout.write(
+          `     missing ${missing.length}: ${missing.map((hit) => `${hit.keyword} (${hit.posting})`).join(', ') || 'none'}\n\n`,
+        );
+      }
     });
 
   addJudgeCommands(program);
