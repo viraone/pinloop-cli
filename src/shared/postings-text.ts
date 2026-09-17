@@ -738,6 +738,86 @@ export function pullStepTakesNoPostedAfterRefusal(): string {
   );
 }
 
+/** One pull step that matches no posting at all, as the refusal below reads it. */
+export type EmptyPullStep = {
+  /** Which step of the routine it is, counting the first step as 1. */
+  position: number;
+  /** The conditions the step was counted over, as a pull reads them. */
+  conditions: Record<string, string>;
+};
+
+/** The order a pull step's conditions are read back to the person in. */
+const CONDITION_ORDER = [
+  'in',
+  'country',
+  'workplace',
+  'employment',
+  'company',
+  'experience',
+  'education',
+  'category',
+  'from',
+] as const;
+
+/** One value, in quotes when it holds a space and bare when it does not. */
+function asWritten(value: string): string {
+  return value.includes(' ') ? `"${value}"` : value;
+}
+
+/** The words a pull step names, one by one. */
+function wordsOf(step: EmptyPullStep): string[] {
+  return (step.conditions['q'] ?? '')
+    .trim()
+    .split(/\s+/)
+    .filter((word) => word !== '');
+}
+
+/** A pull step's conditions written the way a person would type them. */
+function stepAsTyped(step: EmptyPullStep): string {
+  const written: string[] = [];
+  const words = step.conditions['q'] ?? '';
+  if (words.trim() !== '') written.push(`"${words}"`);
+  for (const named of CONDITION_ORDER) {
+    const value = step.conditions[named];
+    if (value === undefined || value === '') continue;
+    written.push(`--${named} ${asWritten(value)}`);
+  }
+  return written.join(' ');
+}
+
+/**
+ * What a person reads when the routine, watch or schedule they are storing holds
+ * a pull step that matches no posting at all at this moment.
+ *
+ * The several-words half of it is the whole point of the sentence. A person
+ * carried six words over from `pinloop search`, where any one of the six being in
+ * a posting is enough, into a pull step, where all six have to be in the same
+ * posting. Two schedules fired that routine for a day, every firing said every
+ * step ran and no postings came back, and nothing anywhere said why.
+ */
+export function pullStepMatchingNothingRefusal(routine: string, step: EmptyPullStep): string {
+  const words = wordsOf(step);
+  const opening =
+    `step ${step.position} of your '${routine}' routine goes out and collects postings, and ` +
+    `nothing at all matches what it asks for right now. It asks for \`${stepAsTyped(step)}\`. `;
+  if (words.length < 2) {
+    return (
+      opening +
+      "Nothing was stored. Widen the step's conditions and check them with `pinloop count` " +
+      'before storing it again.'
+    );
+  }
+  return (
+    opening +
+    `A pull looks for one posting carrying every word it was given, so all ${words.length} of ` +
+    'those words have to appear in the same posting, and a search that was happy with any one ' +
+    'of them says nothing about what a pull will find. Nothing was stored. Give the step fewer ' +
+    'words, or write them as one bracketed group with OR between them, as in `--in title ' +
+    `"(${words[0]} OR ${words[1]})"\`, and check the change with \`pinloop count\` over the ` +
+    'same conditions before storing it again.'
+  );
+}
+
 /**
  * The one sentence a watch whose routine starts by reading the postings Pinloop
  * already holds carries, in its stored outcome and in the lines `pinloop watch

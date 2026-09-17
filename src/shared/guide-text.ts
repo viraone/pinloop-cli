@@ -458,8 +458,12 @@ over the job title alone when you add --in title. Matching the whole description
 is very loose. Almost every posting that deals with the public says the word
 representative somewhere in its body text, and an insurance claims department's
 posting uses the word representative exactly as often as a retailer's
-storefront posting does. Neither of those two commands takes --match at all, so
-there is no way to tighten the words there.
+storefront posting does. Neither of those two commands takes --match at all, and
+every word you type has to appear in the same posting before that posting comes
+back, exactly the way --match all works on a search. So there is no way to
+narrow where the words are looked for beyond --in title, and no way to ask for
+any one of several words except the bracketed OR group the next paragraph
+describes.
 
 Words held to the title with --in title take two joining words, written in
 capitals. OR between two words means either one will do, so "intern OR
@@ -1584,9 +1588,19 @@ Every row it brings back is written onto this
 account's own permanent list of postings, which is what makes that row free from
 then on to "pinloop viewed", "pinloop fetch", judging and tabs.
 
-It takes the same words and the same ten conditions a search takes, with the same
-fixed values the searching part of these instructions lists. --company is the one
-that differs. On a pull it takes employers' names, written the way the employers
+It takes the same ten conditions a search takes, with the same fixed values the
+searching part of these instructions lists. The words are the one thing that does
+not behave the way a search's words behave. A pull takes no --match at all, and
+every word you give it has to appear in the same posting before that posting comes
+back, which is what --match all does on a search. So a pull carrying six words
+finds only the postings carrying all six, and six words that worked on a search,
+where any one of them is enough, can match nothing at all here. There is no option
+that turns several words back into "any one of these will do". The one way to ask
+for that on a pull is to hold the words to the title and write them as a bracketed
+group with OR between them, as in --in title "(intern OR internship)". The part of
+these instructions on how the words you type are matched spells those brackets
+out. --company is the one condition that differs. On a pull it takes employers'
+names, written the way the employers
 write them, rather than the employer ids a search takes. It takes one or more of
 them: separate several with commas, as in --company "Google,Microsoft", or write
 --company again for each one. A posting matches when it is from any one of them,
