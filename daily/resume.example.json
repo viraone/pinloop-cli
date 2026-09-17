@@ -1,0 +1,48 @@
+{
+  "name": "JANE CANDIDATE",
+  "title": "Quality Assurance Engineer",
+  "contact": "Seattle, WA | (555) 555-0100 | jane@example.com | linkedin.com/in/jane-candidate",
+  "summary": "Quality Assurance Engineer experienced in manual, mobile, and web testing across cross-functional product teams.",
+  "skills": [
+    [
+      "Testing & QA",
+      [
+        "Manual Testing",
+        "Functional Testing",
+        "Integration Testing",
+        "Exploratory Testing",
+        "Regression Testing"
+      ]
+    ],
+    [
+      "Tools",
+      [
+        "TestRail",
+        "Jira",
+        "Charles Proxy"
+      ]
+    ]
+  ],
+  "experience": [
+    {
+      "title": "Quality Assurance Engineer",
+      "company": "Example Company",
+      "location": "Remote",
+      "dates": "Jan 2020 - Present",
+      "bullets": [
+        "Designed and executed manual functional and integration tests for web and mobile releases.",
+        "Documented reproducible defects and partnered with engineering to verify fixes before release."
+      ]
+    }
+  ],
+  "achievements": [
+    "Maintained release-quality standards across recurring production releases."
+  ],
+  "education": [
+    [
+      "Certificate in Software Testing",
+      "Example College",
+      "2020"
+    ]
+  ]
+}

@@ -1,0 +1,424 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Pinloop Jobs</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  :root { --bg:#0f1115; --card:#181b22; --line:#262a33; --fg:#e8eaf0; --mute:#8b91a0; --acc:#5865F2;
+          --good:#2ecc71; --ok:#f1c40f; --bad:#e74c3c; }
+  * { box-sizing:border-box }
+  body { margin:0; background:var(--bg); color:var(--fg); font:15px/1.5 -apple-system, system-ui, sans-serif }
+  a { color:#9aa3ff }
+  header { padding:18px 28px 0; border-bottom:1px solid var(--line); position:sticky; top:0; background:var(--bg); z-index:5 }
+  .brand { display:flex; align-items:center; gap:12px; margin-bottom:12px }
+  .brand h1 { font-size:20px; margin:0 } .brand .tag { color:var(--mute); font-size:13px }
+  nav { display:flex; gap:4px }
+  nav button { background:none; border:0; color:var(--mute); font-size:15px; padding:10px 14px; cursor:pointer; border-bottom:2px solid transparent }
+  nav button.on { color:var(--fg); border-color:var(--acc) }
+  nav .n { display:inline-block; min-width:20px; padding:0 6px; border-radius:999px; background:#262a33; font-size:12px; margin-left:6px; text-align:center }
+  nav .n.warn { background:#e67e2233; color:#f5a25d }
+  main { padding:22px 28px 60px; max-width:980px; margin:0 auto }
+  .btn { border:1px solid var(--line); background:#20242d; color:var(--fg); padding:9px 14px; border-radius:9px; cursor:pointer; font-size:14px }
+  .btn:hover { border-color:#3b4150 } .btn:disabled { opacity:.5; cursor:default }
+  .btn.primary { background:var(--acc); border-color:var(--acc); font-weight:600 }
+  .btn.big { font-size:16px; padding:12px 20px }
+  .btn.quiet { background:none; border-color:transparent; color:var(--mute) }
+  .box { background:var(--card); border:1px solid var(--line); border-radius:14px; padding:20px }
+  /* how it works */
+  .how { display:grid; grid-template-columns:repeat(3, 1fr); gap:14px; margin-bottom:22px; position:relative }
+  .how .step { background:var(--card); border:1px solid var(--line); border-radius:14px; padding:16px 18px }
+  .how .num { width:26px; height:26px; border-radius:50%; background:var(--acc); color:#fff; display:grid; place-items:center; font-weight:700; font-size:13px; margin-bottom:8px }
+  .how b { display:block; margin-bottom:4px } .how span { color:var(--mute); font-size:13.5px }
+  .how .close { position:absolute; top:-8px; right:-8px; background:#262a33; border:0; color:var(--mute); width:26px; height:26px; border-radius:50%; cursor:pointer }
+  /* status */
+  .status { display:flex; align-items:center; gap:18px; margin-bottom:26px }
+  .status .dot { width:10px; height:10px; border-radius:50%; background:var(--good); flex:none }
+  .status .dot.busy { background:var(--acc); animation:pulse 1.2s infinite }
+  @keyframes pulse { 0%,100%{box-shadow:0 0 0 0 #5865f288} 50%{box-shadow:0 0 0 10px #5865f200} }
+  .status .txt { flex:1 } .status .txt b { display:block } .status .txt span { color:var(--mute); font-size:13.5px }
+  /* groups */
+  h2.grp { font-size:14px; text-transform:uppercase; letter-spacing:.6px; color:var(--mute); margin:26px 0 10px; display:flex; align-items:center; gap:10px }
+  h2.grp button { background:none; border:0; color:var(--mute); cursor:pointer; font-size:13px; text-decoration:underline }
+  .list { display:flex; flex-direction:column; gap:12px }
+  /* job row */
+  .job { background:var(--card); border:1px solid var(--line); border-radius:14px; padding:18px 20px; display:grid; grid-template-columns:76px 1fr; gap:18px }
+  .job.applied { opacity:.55 }
+  .match { text-align:center } .match .pct { font-size:26px; font-weight:700; line-height:1 } .match small { color:var(--mute); font-size:11px; display:block; margin-top:4px }
+  .job .t { font-size:17px; font-weight:650; line-height:1.3 } .job .c { color:var(--mute); font-size:14px; margin-top:2px }
+  .call { margin:10px 0 12px; padding:10px 12px; border-radius:10px; background:#20242d; border-left:3px solid var(--line); font-size:14px }
+  .call.strong, .call.fair { border-color:var(--good) } .call.weak { border-color:var(--ok) } .call.no { border-color:var(--bad) } .call.none { border-color:var(--mute) }
+  .call b { margin-right:6px } .call.strong b, .call.fair b { color:var(--good) } .call.weak b { color:var(--ok) } .call.no b { color:var(--bad) }
+  .acts { display:flex; gap:8px; flex-wrap:wrap; align-items:center }
+  .more { margin-top:14px; border-top:1px solid var(--line); padding-top:14px; display:none; font-size:13.5px }
+  .more.show { display:block }
+  .more h4 { margin:12px 0 6px; font-size:12px; text-transform:uppercase; letter-spacing:.5px; color:var(--mute) }
+  .more h4:first-child { margin-top:0 }
+  .more p { margin:0; color:#c9cdd7; white-space:pre-line }
+  ol.fixes { margin:0; padding-left:20px; color:#c9cdd7 } ol.fixes li { margin:4px 0 } ol.fixes li::marker { color:var(--acc) }
+  .chips { display:flex; flex-wrap:wrap; gap:6px } .chip { font-size:12px; padding:3px 8px; border-radius:6px; background:#20242d; border:1px solid var(--line) }
+  .chip.ok { border-color:#2ecc7155 } .chip.miss { border-color:#e74c3c55; color:#f0a9a0 } .chip b { color:var(--mute); font-weight:500; margin-left:4px }
+  .chip.miss[data-ask] { cursor:pointer } .chip.miss[data-ask]:hover { background:#2a2228; border-color:#e74c3c } .chip.miss b { color:#f0a9a0; opacity:.6 }
+  .askbox { margin-top:10px; padding:12px 14px; border:1px solid var(--acc); border-radius:8px; background:#151a26 } .askbox p { margin:0 0 8px; font-size:14px } .askbox .row { display:flex; gap:8px; flex-wrap:wrap }
+  .askbox input { flex:1; min-width:220px; background:#0f1218; border:1px solid var(--line); color:var(--fg); border-radius:6px; padding:8px 10px; font:inherit; font-size:13px }
+  .askbox .field { flex:1; display:flex; align-items:center; gap:6px; min-width:260px; background:#0f1218; border:1px solid var(--line); border-radius:6px; padding:0 6px 0 0 }
+  .askbox .field input { border:none; background:none; min-width:0 } .askbox .field:focus-within { border-color:var(--acc) }
+  .mic { width:34px; height:34px; border-radius:50%; border:none; background:transparent; color:var(--mute); cursor:pointer; display:grid; place-items:center; flex:none }
+  .mic:hover { color:var(--fg); background:#20242d } .mic svg { width:18px; height:18px }
+  .mic.on { color:#fff; background:#e74c3c; animation:pulse 1.2s ease-in-out infinite } .mic.busy { color:var(--acc); animation:spin 1s linear infinite; background:transparent }
+  @keyframes pulse { 0%,100% { box-shadow:0 0 0 0 #e74c3c66 } 50% { box-shadow:0 0 0 8px #e74c3c00 } } @keyframes spin { to { transform:rotate(360deg) } }
+  .askbox .note { font-size:12px; color:var(--mute); margin:6px 0 0 } .askbox .note .link { margin-left:6px }
+  .empty { color:var(--mute); text-align:center; padding:50px 0 }
+  /* setup */
+  .todo { display:flex; flex-direction:column; gap:12px }
+  .item { background:var(--card); border:1px solid var(--line); border-radius:14px }
+  .item .head { display:flex; align-items:center; gap:14px; padding:16px 20px; cursor:pointer }
+  .item .ck { width:28px; height:28px; border-radius:50%; display:grid; place-items:center; font-weight:700; flex:none; font-size:14px }
+  .item .ck.done { background:#2ecc7122; color:var(--good) } .item .ck.todo-ck { background:#e67e2233; color:#f5a25d }
+  .item .head .t { flex:1 } .item .head .t b { display:block } .item .head .t span { color:var(--mute); font-size:13.5px }
+  .item .head .arrow { color:var(--mute); transition:transform .15s } .item.open .head .arrow { transform:rotate(90deg) }
+  .item .body { display:none; padding:0 20px 20px; border-top:1px solid var(--line) } .item.open .body { display:block; padding-top:16px }
+  .hint { color:var(--mute); font-size:13.5px; margin-bottom:14px }
+  .qs { display:flex; flex-direction:column; gap:8px }
+  .q { display:flex; align-items:center; gap:12px; padding:10px 12px; background:#20242d; border:1px solid var(--line); border-radius:10px }
+  .q .t { flex:1 } .q .t b { display:block } .q .t span { color:var(--mute); font-size:13px }
+  .yes, .no { border:0; border-radius:8px; padding:8px 14px; font-weight:600; cursor:pointer; color:#fff } .yes { background:var(--good) } .no { background:#3a3f4d }
+  .ev { display:flex; flex-direction:column; gap:8px }
+  .evrow { display:flex; gap:12px; align-items:flex-start; padding:10px 12px; background:#20242d; border:1px solid var(--line); border-radius:10px }
+  .evrow .nm { min-width:190px; font-weight:600 } .evrow .pf { flex:1; font-size:13px; color:var(--mute) } .evrow .pf q { color:#c9cdd7; font-style:italic }
+  .evrow input { width:100%; background:#0f1115; color:var(--fg); border:1px solid var(--line); border-radius:6px; padding:7px 9px; font-size:13px }
+  .tagp { font-size:11px; padding:2px 7px; border-radius:999px; text-transform:uppercase; letter-spacing:.4px; font-weight:600; flex:none; margin-top:3px }
+  .tagp.proven { background:#2ecc7122; color:var(--good) } .tagp.inferred { background:#5865f222; color:#9aa3ff }
+  .tagp.confirmed { background:#f1c40f22; color:var(--ok) } .tagp.unproven { background:#e74c3c22; color:var(--bad) } .tagp.removed { background:#262a33; color:var(--mute) }
+  .link { color:#9aa3ff; cursor:pointer; text-decoration:underline; font-size:13px }
+  .form { display:grid; grid-template-columns:repeat(auto-fill, minmax(220px, 1fr)); gap:10px }
+  .form label { font-size:12px; color:var(--mute); display:flex; flex-direction:column; gap:4px }
+  .form input, .form select { background:#0f1115; color:var(--fg); border:1px solid var(--line); border-radius:6px; padding:7px 8px; font-size:13.5px }
+  .log { background:#0b0d11; border:1px solid var(--line); border-radius:10px; padding:12px 14px; font:12.5px/1.5 ui-monospace, Menlo, monospace; color:#b7bcc8; max-height:260px; overflow:auto; white-space:pre-wrap; margin-top:10px }
+  .toast { position:fixed; bottom:20px; left:50%; transform:translateX(-50%); background:#111; border:1px solid var(--line); padding:10px 16px; border-radius:10px; font-size:14px; opacity:0; transition:opacity .2s; pointer-events:none; z-index:9 }
+  .toast.show { opacity:1 }
+  details.sub summary { color:var(--mute); cursor:pointer; font-size:13px; margin-top:12px }
+</style>
+</head>
+<body>
+<header>
+  <div class="brand"><h1>Pinloop Jobs</h1><span class="tag">remote manual-QA jobs, found and prepared for you every day</span></div>
+  <nav>
+    <button id="tabJobs" class="on">Jobs <span class="n" id="nJobs">0</span></button>
+    <button id="tabSetup">Setup <span class="n" id="nSetup">0</span></button>
+  </nav>
+</header>
+
+<main>
+  <section id="viewJobs">
+    <div class="how" id="how">
+      <button class="close" id="hideHow" title="Hide">×</button>
+      <div class="step"><div class="num">1</div><b>Jobs arrive by themselves</b><span>Every day at 5:30 PM, 5 new remote manual-tester postings are found, scored, and each gets a resume tailored to it.</span></div>
+      <div class="step"><div class="num">2</div><b>You read the call</b><span>Each job shows a match %, a recruiter’s honest read, and whether it’s worth your time.</span></div>
+      <div class="step"><div class="num">3</div><b>Press Apply</b><span>The application opens in a browser with your details and tailored resume already filled in. You check it and hit submit.</span></div>
+    </div>
+
+    <div class="box status">
+      <div class="dot" id="dot"></div>
+      <div class="txt"><b id="stLine">Loading…</b><span id="stSub"></span></div>
+      <button class="btn primary big" id="play">Find jobs now</button>
+    </div>
+
+    <div id="groups"></div>
+    <div class="empty" id="empty" style="display:none">No jobs yet. They’ll arrive at 5:30 PM — or press <b>Find jobs now</b>.</div>
+  </section>
+
+  <section id="viewSetup" style="display:none">
+    <p class="hint" style="margin-top:0">Three things make your applications stronger. Green means done; you can leave the rest alone.</p>
+    <div class="todo">
+      <div class="item" id="itQ"><div class="head"><div class="ck" id="ckQ">…</div><div class="t"><b>Answer quick skill questions</b><span id="subQ"></span></div><span class="arrow">›</span></div><div class="body" id="bodyQ"></div></div>
+      <div class="item" id="itP"><div class="head"><div class="ck" id="ckP">…</div><div class="t"><b>Back up every skill on your resume</b><span id="subP"></span></div><span class="arrow">›</span></div><div class="body" id="bodyP"></div></div>
+      <div class="item" id="itD"><div class="head"><div class="ck" id="ckD">…</div><div class="t"><b>Your application answers</b><span id="subD"></span></div><span class="arrow">›</span></div><div class="body" id="bodyD"></div></div>
+      <div class="item" id="itA"><div class="head"><div class="ck" style="background:#262a33;color:var(--mute)">⚙</div><div class="t"><b>Advanced</b><span>Run log, rebuild, files</span></div><span class="arrow">›</span></div>
+        <div class="body">
+          <div class="acts">
+            <button class="btn" id="rebuild">Re-score everything</button>
+            <button class="btn" id="sheet">Open spreadsheet</button>
+            <button class="btn" id="toggleLog">Show run log</button>
+          </div>
+          <p class="hint" style="margin-top:12px">Tailored resumes are saved in <code>Desktop/pinloop-jobs/&lt;Company&gt;/&lt;Job title&gt;/&lt;configured resume name&gt;.pdf</code>. The spreadsheet is <code>Desktop/pinloop-jobs.xlsx</code>.</p>
+          <div class="log" id="log" style="display:none"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+</main>
+<div class="toast" id="toast"></div>
+
+<script>
+const $ = (s) => document.querySelector(s);
+const esc = (s) => String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const toast = (t) => { const el = $('#toast'); el.textContent = t; el.classList.add('show'); setTimeout(() => el.classList.remove('show'), 2800); };
+const col = (n) => n >= 70 ? 'var(--good)' : n >= 50 ? 'var(--ok)' : 'var(--bad)';
+const CALL = { strong: 'Apply', fair: 'Worth applying', weak: 'Long shot', no: 'Skip', none: 'Not judged yet' };
+let postingsLeft = null, showSkips = false;
+
+/* ---------- tabs ---------- */
+function show(tab) {
+  $('#viewJobs').style.display = tab === 'jobs' ? '' : 'none';
+  $('#viewSetup').style.display = tab === 'setup' ? '' : 'none';
+  $('#tabJobs').classList.toggle('on', tab === 'jobs'); $('#tabSetup').classList.toggle('on', tab === 'setup');
+  if (tab === 'setup') loadSetup();
+}
+$('#tabJobs').onclick = () => show('jobs'); $('#tabSetup').onclick = () => show('setup');
+if (localStorage.hideHow) $('#how').style.display = 'none';
+$('#hideHow').onclick = () => { $('#how').style.display = 'none'; localStorage.hideHow = 1; };
+
+/* ---------- status line ---------- */
+function nextRun() {
+  const d = new Date(); d.setHours(17, 30, 0, 0);
+  if (d < new Date()) d.setDate(d.getDate() + 1);
+  const today = d.toDateString() === new Date().toDateString();
+  return `${today ? 'today' : 'tomorrow'} at 5:30 PM`;
+}
+function statusLine(d, running) {
+  const m = /Postings: \d+ used, (\d+) left/.exec(d.status || ''); postingsLeft = m ? +m[1] : null;
+  const last = d.last_updated ? new Date(d.last_updated) : null;
+  if (running) { $('#stLine').textContent = 'Finding and scoring jobs…'; $('#stSub').textContent = 'Usually takes about a minute.'; }
+  else {
+    $('#stLine').textContent = `Next automatic run: ${nextRun()}`;
+    $('#stSub').textContent = (last ? `Last updated ${last.toLocaleString([], { weekday: 'short', hour: 'numeric', minute: '2-digit' })}. ` : '')
+      + (postingsLeft === 0 ? 'Today’s 5 jobs are used up; 5 more unlock at 5:00 PM.' : postingsLeft != null ? `${postingsLeft} new jobs available now.` : '');
+  }
+  $('#dot').classList.toggle('busy', running);
+  const p = $('#play'); p.disabled = running || postingsLeft === 0;
+  p.textContent = running ? 'Running…' : postingsLeft === 0 ? 'Next jobs unlock at 5:00 PM' : 'Find jobs now';
+}
+
+/* ---------- jobs ---------- */
+function job(j) {
+  const score = j.ats_tailored ?? j.ats_base ?? 0, v = j.verdict || 'none';
+  const hard = (a) => (a || []).filter(x => x.kind !== 'soft');
+  const read = j.summary ? j.summary.split('\n')[0] : (j.reasoning ? j.reasoning.split(/(?<=\.)\s/)[0] : 'Only the 3 best-matching jobs each day get the recruiter’s read; this one didn’t make the cut, so go by the match % alone.');
+  return `<div class="job ${j.status === 'Applied' ? 'applied' : ''}" data-id="${j.id}">
+    <div class="match"><div class="pct" style="color:${col(score)}">${score}%</div><small>resume match</small>
+      ${j.odds != null ? `<div class="pct" style="font-size:18px;margin-top:10px;color:${col(j.odds)}">${j.odds}%</div><small>callback odds</small>` : ''}</div>
+    <div>
+      <div class="t">${esc(j.title)}</div>
+      <div class="c">${esc(j.company)} · ${esc(j.location || 'Remote')} · posted ${esc(j.posted)}${j.status === 'Applied' ? ' · <b style="color:var(--good)">Applied ✓</b>' : ''}</div>
+      <div class="call ${v}"><b>${CALL[v]}.</b>${esc(read)}</div>
+      <div class="acts">
+        <button class="btn primary" data-act="apply">Apply — opens the form filled in</button>
+        <a class="btn" href="/resume/${j.id}" target="_blank">See tailored resume</a>
+        <button class="btn quiet" data-act="more">Details ▾</button>
+        <span style="flex:1"></span>
+        <button class="btn quiet" data-act="status">${j.status === 'Applied' ? 'Undo applied' : 'Mark as applied'}</button>
+      </div>
+      <div class="more">
+        ${j.fixes && j.fixes.length ? `<h4>Recruiter’s read</h4><p>${esc(j.summary)}</p><h4>3 truthful ways to improve this resume</h4><ol class="fixes">${j.fixes.map(f => `<li>${esc(f)}</li>`).join('')}</ol>`
+          : j.reasoning ? `<h4>Why “${esc(v)}”</h4><p>${esc(j.reasoning)}</p>` : ''}
+        <h4>Keywords the posting wants that your resume has</h4><div class="chips">${hard(j.matched).slice(0, 12).map(m => `<span class="chip ok">${esc(m.k)}</span>`).join('') || '<span class="chip">none</span>'}</div>
+        <h4>Keywords it wants that your resume doesn’t have — <span style="color:var(--acc);text-transform:none;letter-spacing:0">tap one you actually have</span></h4><div class="chips">${hard(j.missing).slice(0, 10).map(m => `<span class="chip miss" data-ask="${esc(m.k)}" title="Tap if you really have this">${esc(m.k)} <b>+</b></span>`).join('') || '<span class="chip">none</span>'}</div>
+        <div class="askbox" hidden></div>
+        <p class="hint" style="margin-top:12px"><span class="link" data-act="reveal">Show resume file in Finder</span> · <a href="${esc(j.url)}" target="_blank">Open posting</a></p>
+      </div>
+    </div>
+  </div>`;
+}
+
+function groups(jobs) {
+  const go = jobs.filter(j => ['strong', 'fair'].includes(j.verdict));
+  const unj = jobs.filter(j => !j.verdict);
+  const skip = jobs.filter(j => ['weak', 'no'].includes(j.verdict));
+  let h = '';
+  if (go.length) h += `<h2 class="grp">Recommended — ${go.length}</h2><div class="list">${go.map(job).join('')}</div>`;
+  if (unj.length) h += `<h2 class="grp">Not judged yet — ${unj.length}</h2><div class="list">${unj.map(job).join('')}</div>`;
+  if (skip.length) h += `<h2 class="grp">Long shots &amp; skips — ${skip.length} <button id="tglSkip">${showSkips ? 'hide' : 'show'}</button></h2>`
+    + (showSkips ? `<div class="list">${skip.map(job).join('')}</div>` : '');
+  if (!go.length && !unj.length && skip.length && !showSkips) h += `<p class="hint">Nothing recommended yet. Today’s jobs were automation roles — the recruiter read says skip. Better-fitting manual-tester jobs are what the daily run looks for.</p>`;
+  $('#groups').innerHTML = h;
+  const t = $('#tglSkip'); if (t) t.onclick = () => { showSkips = !showSkips; groups(jobs); };
+}
+
+let JOBS = [];
+async function load(running) {
+  const d = await (await fetch('/api/jobs')).json();
+  JOBS = d.jobs; statusLine(d, running);
+  $('#nJobs').textContent = d.jobs.length;
+  groups(d.jobs); $('#empty').style.display = d.jobs.length ? 'none' : 'block';
+  setupBadge();
+}
+
+$('#groups').addEventListener('click', async (e) => {
+  const chip = e.target.closest('[data-ask]');
+  if (chip) {
+    const skill = chip.dataset.ask, box = chip.closest('.more').querySelector('.askbox');
+    box.hidden = false;
+    box.innerHTML = `<p>Do you actually have <b>${esc(skill)}</b> experience? It only goes on your resume if it’s true.</p>
+      <div class="row"><div class="field"><input placeholder="Say it or type it — e.g. “Used ${esc(skill)} daily for 2 years at …” (optional but helps a lot)"><button class="mic" data-mic title="Tap, speak, tap again when done">${MIC}</button></div></div>
+      <p class="note" hidden></p>
+      <div class="row" style="margin-top:8px"><button class="btn primary" data-yes="${esc(skill)}">Yes, add it to my resume</button><button class="btn" data-no="${esc(skill)}">No, skip it</button><button class="btn" data-cancel style="background:none;border-color:transparent;color:var(--mute)">Cancel</button></div>`;
+    box.querySelector('input').focus(); return;
+  }
+  const mic = e.target.closest('[data-mic]'); if (mic) { toggleMic(mic); return; }
+  const undo = e.target.closest('[data-orig]'); if (undo) { const box = undo.closest('.askbox'); box.querySelector('input').value = undo.dataset.orig; undo.parentElement.hidden = true; return; }
+  const yes = e.target.closest('[data-yes]'), no = e.target.closest('[data-no]'), cancel = e.target.closest('[data-cancel]');
+  if (yes || no || cancel) {
+    const box = e.target.closest('.askbox'), skill = (yes || no || {}).dataset?.yes || (no || {}).dataset?.no;
+    if (yes) {
+      const text = box.querySelector('input').value.trim();
+      await post('/api/skills/have', { skill });
+      if (text) await post('/api/statement', { skill, text });
+      toast(`${skill} added — every job gets re-scored in a moment.`);
+      box.closest('.job').querySelector(`[data-ask="${CSS.escape(skill)}"]`)?.remove();
+      taps++; scheduleRebuild(); setupBadge();
+    } else if (no) {
+      await post('/api/skills/not', { skill }); toast(`Okay — ${skill} stays off your resume.`);
+      box.closest('.job').querySelector(`[data-ask="${CSS.escape(skill)}"]`)?.remove();
+    }
+    box.hidden = true; box.innerHTML = ''; return;
+  }
+  const b = e.target.closest('[data-act]'); if (!b) return;
+  const card = b.closest('.job'), id = card.dataset.id, act = b.dataset.act;
+  if (act === 'apply') {
+    b.disabled = true; b.textContent = 'Opening browser…';
+    await fetch(`/api/apply/${id}`, { method: 'POST' });
+    toast('A browser window is opening. Your details and resume fill in by themselves — check it, then submit.');
+    setTimeout(() => { b.disabled = false; b.textContent = 'Apply — opens the form filled in'; }, 5000);
+  } else if (act === 'more') { const m = card.querySelector('.more'); m.classList.toggle('show'); b.textContent = m.classList.contains('show') ? 'Details ▴' : 'Details ▾'; }
+  else if (act === 'reveal') fetch(`/api/reveal/${id}`, { method: 'POST' });
+  else if (act === 'setup') show('setup');
+  else if (act === 'status') {
+    const applied = b.textContent.startsWith('Mark');
+    await fetch(`/api/status/${id}`, { method: 'POST', headers: {'content-type': 'application/json'}, body: JSON.stringify({ status: applied ? 'Applied' : 'Not applied' }) });
+    toast(applied ? 'Marked as applied — also saved in your spreadsheet.' : 'Unmarked.'); load();
+  }
+});
+
+/* ---------- running ---------- */
+async function poll() {
+  const s = await (await fetch('/api/run/status')).json();
+  $('#log').textContent = s.log.join('\n'); $('#log').scrollTop = $('#log').scrollHeight;
+  if (s.running) { $('#dot').classList.add('busy'); $('#stLine').textContent = 'Finding and scoring jobs…'; $('#stSub').textContent = s.log.at(-1) || ''; $('#play').disabled = true; $('#play').textContent = 'Running…'; setTimeout(poll, 1200); }
+  else if (poll.was) { poll.was = false; toast(s.ok ? 'Done — jobs updated.' : 'Something went wrong — see Setup › Advanced › run log.'); load(); }
+  poll.was = poll.was || s.running;
+}
+async function start(body) {
+  const r = await fetch('/api/run', { method: 'POST', headers: {'content-type': 'application/json'}, body: JSON.stringify(body || {}) });
+  if (!r.ok) { toast('Already running'); return; }
+  poll.was = true; poll();
+}
+$('#play').onclick = () => start({});
+$('#rebuild').onclick = () => { toast('Re-scoring…'); start({ no_pull: true }); };
+$('#sheet').onclick = () => fetch('/api/open-sheet', { method: 'POST' });
+$('#toggleLog').onclick = () => { const l = $('#log'); l.style.display = l.style.display === 'none' ? 'block' : 'none'; };
+
+let rebuildTimer = null, taps = 0;
+function scheduleRebuild() { clearTimeout(rebuildTimer); rebuildTimer = setTimeout(() => { if (taps) { taps = 0; toast('Updating your resumes with that…'); start({ no_pull: true }); } }, 3500); }
+
+/* ---------- setup ---------- */
+document.querySelectorAll('.item .head').forEach(h => h.onclick = () => h.parentElement.classList.toggle('open'));
+const REQ = ['first_name', 'last_name', 'email', 'phone', 'city', 'state'];
+async function setupBadge() {
+  const [sk, ev, pr] = await Promise.all([fetch('/api/skills'), fetch('/api/evidence'), fetch('/api/profile')].map(p => p.then(r => r.json())));
+  const unproven = ev.rows.filter(r => !r.verified && r.source !== 'removed').length;
+  const missing = REQ.filter(k => !pr[k]).length;
+  const n = sk.pending.length + unproven + missing;
+  const b = $('#nSetup'); b.textContent = n; b.classList.toggle('warn', n > 0);
+  return { sk, ev, pr, unproven, missing };
+}
+async function loadSetup() {
+  const { sk, ev, pr, unproven, missing } = await setupBadge();
+  // 1. questions
+  const q = sk.pending;
+  $('#ckQ').className = 'ck ' + (q.length ? 'todo-ck' : 'done'); $('#ckQ').textContent = q.length ? q.length : '✓';
+  $('#subQ').textContent = q.length ? `${q.length} waiting — postings ask for these and your resume doesn’t mention them` : 'Nothing waiting. New ones appear when a posting asks for something new.';
+  $('#bodyQ').innerHTML = `<p class="hint">One tap each. Say yes only if it’s true — it goes on your resume. Remembered forever; resumes update by themselves.</p>
+    <div class="qs">${q.map(a => `<div class="q" data-skill="${esc(a.skill)}"><div class="t"><b>${esc(a.skill)}</b><span>${esc(a.question)}</span></div>
+      <button class="yes" data-v="have">✓ I have this</button><button class="no" data-v="not">✗ I don’t</button></div>`).join('') || '<p class="hint">All answered.</p>'}</div>
+    <details class="sub"><summary>See everything already decided (${sk.added.length} on your resume, ${sk.skipped.length} skipped)</summary>
+      <h4 style="font-size:12px;color:var(--mute);margin:10px 0 6px">ON YOUR RESUME — tap to remove</h4><div class="chips">${sk.added.map(a => `<span class="chip ok" style="cursor:pointer" data-undo="${esc(a.skill)}" title="${esc(a.note)}">${esc(a.skill)}</span>`).join('')}</div>
+      <h4 style="font-size:12px;color:var(--mute);margin:10px 0 6px">SKIPPED — tap if you do have it</h4><div class="chips">${sk.skipped.map(a => `<span class="chip" style="cursor:pointer;opacity:.6" data-flip="${esc(a.skill)}" title="${esc(a.note)}">${esc(a.skill)}</span>`).join('')}</div>
+      <p class="hint" style="margin-top:8px">Automation frameworks and programming languages are skipped automatically because you want manual-tester roles.</p></details>`;
+  // 2. proof
+  const rows = ev.rows, cls = (r) => r.source === 'removed' ? 'removed' : r.source === 'listed' ? (r.verified ? 'proven' : 'unproven') : r.verified ? r.source : 'unproven';
+  const order = { unproven: 0, confirmed: 1, inferred: 2, proven: 3, removed: 4 }; rows.sort((a, b) => order[cls(a)] - order[cls(b)]);
+  $('#ckP').className = 'ck ' + (unproven ? 'todo-ck' : 'done'); $('#ckP').textContent = unproven ? unproven : '✓';
+  $('#subP').textContent = unproven ? `${unproven} skills are on your resume but nothing on it shows you used them` : 'Every skill on your resume is backed by something.';
+  $('#bodyP').innerHTML = `<p class="hint">Recruiters trust a skill when a bullet shows it. For each red one, type <b>one true sentence</b> about where you used it (press Enter) — it becomes a bullet on every resume. Or remove it.</p>
+    <div class="ev">${rows.map(r => `<div class="evrow" data-skill="${esc(r.skill)}"><span class="tagp ${cls(r)}">${cls(r)}</span><div class="nm">${esc(r.skill)}</div><div class="pf">${
+      r.proof.length ? r.proof.slice(0, 1).map(p => `<q>${esc(p.length > 150 ? p.slice(0, 150) + '…' : p)}</q>`).join('')
+      : cls(r) === 'inferred' ? esc(r.note)
+      : cls(r) === 'removed' ? `removed · <span class="link" data-restore>put back</span>`
+      : `<input placeholder="e.g. Used ${esc(r.skill)} daily at work to … (Enter to save)" value="${esc(r.statement || '')}" data-stmt><div style="margin-top:4px"><span class="link" data-remove>remove from resume instead</span></div>`}</div></div>`).join('')}</div>`;
+  // 3. details
+  $('#ckD').className = 'ck ' + (missing ? 'todo-ck' : 'done'); $('#ckD').textContent = missing ? missing : '✓';
+  $('#subD').textContent = missing ? `${missing} required fields empty` : 'Complete. These get typed into application forms for you.';
+  const yn = ['work_authorized', 'needs_sponsorship', 'over_18', 'willing_to_relocate', 'remote_ok', 'worked_here_before', 'non_compete'];
+  $('#bodyD').innerHTML = `<p class="hint">Typed into forms when you press Apply. Only empty fields are filled; nothing is ever submitted for you. Saves as you type.</p>
+    <div class="form">${Object.keys(pr).map(k => `<label>${esc(LABELS[k] || k)}${yn.includes(k)
+      ? `<select data-k="${k}"><option${pr[k] === 'Yes' ? ' selected' : ''}>Yes</option><option${pr[k] === 'No' ? ' selected' : ''}>No</option><option value=""${!pr[k] ? ' selected' : ''}>leave blank</option></select>`
+      : `<input data-k="${k}" value="${esc(pr[k])}" ${REQ.includes(k) && !pr[k] ? 'style="border-color:var(--bad)"' : ''}>`}</label>`).join('')}</div>`;
+  if (!$('#itQ').classList.contains('open') && !$('#itP').classList.contains('open') && !$('#itD').classList.contains('open')) {
+    (q.length ? $('#itQ') : unproven ? $('#itP') : missing ? $('#itD') : $('#itQ')).classList.add('open');
+  }
+}
+const LABELS = { first_name:'First name', last_name:'Last name', email:'Email', phone:'Phone', address:'Street address', city:'City', state:'State', zip:'ZIP', country:'Country',
+  linkedin:'LinkedIn URL', website:'Website / portfolio', github:'GitHub', current_company:'Current company', current_title:'Current title', years_experience:'Years of experience',
+  work_authorized:'Authorized to work in the US?', needs_sponsorship:'Need visa sponsorship?', over_18:'Over 18?', willing_to_relocate:'Willing to relocate?', remote_ok:'OK with remote?',
+  start_date:'Available to start', salary:'Salary expectation', how_heard:'How did you hear about us?', referred_by:'Referred by', pronouns:'Pronouns', gender:'Gender (EEO)', race:'Race (EEO)',
+  hispanic:'Hispanic/Latino? (EEO)', veteran:'Veteran status (EEO)', disability:'Disability status (EEO)', worked_here_before:'Worked at this company before?', non_compete:'Under a non-compete?', cover_letter:'Cover letter / additional info' };
+
+const post = (url, body) => fetch(url, { method: 'POST', headers: {'content-type': 'application/json'}, body: JSON.stringify(body) });
+
+/* ---------- voice → text → ATS polish ---------- */
+const MIC = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 11a7 7 0 0 0 14 0"/><path d="M12 18v4M8 22h8"/></svg>';
+const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+let rec = null;
+function toggleMic(btn) {
+  const box = btn.closest('.askbox'), input = box.querySelector('input'), note = box.querySelector('.note');
+  if (btn.classList.contains('on')) { rec?.stop(); return; }
+  if (btn.classList.contains('busy')) return;
+  if (!SR) { note.hidden = false; note.textContent = 'Voice typing isn’t available in this window. Tap the field and press the 🎤 key (or fn twice) to use Mac dictation — then hit Polish.'; return; }
+  const before = input.value.trim(); let heard = '';
+  rec = new SR(); rec.continuous = true; rec.interimResults = true; rec.lang = 'en-US';
+  rec.onresult = (ev) => { heard = Array.from(ev.results).map(r => r[0].transcript).join(' '); input.value = (before ? before + ' ' : '') + heard; };
+  rec.onerror = (ev) => { note.hidden = false; note.textContent = ev.error === 'not-allowed' ? 'Microphone blocked — allow it in your browser and try again.' : 'Didn’t catch that — try again.'; };
+  rec.onend = async () => {
+    btn.classList.remove('on'); rec = null;
+    const raw = input.value.trim(); if (!raw) { note.hidden = true; return; }
+    await polish(box, raw);
+  };
+  btn.classList.add('on'); note.hidden = false; note.textContent = 'Listening… speak naturally, tap the mic again when you’re done.'; rec.start();
+}
+async function polish(box, raw) {
+  const btn = box.querySelector('.mic'), input = box.querySelector('input'), note = box.querySelector('.note'), skill = box.querySelector('[data-yes]').dataset.yes;
+  btn.classList.add('busy'); note.hidden = false; note.textContent = 'Rewriting that into ATS-friendly resume wording…'; input.disabled = true;
+  try {
+    const r = await (await post('/api/tidy', { skill, text: raw })).json();
+    if (r.empty) { note.textContent = 'That didn’t sound like real experience — say what you actually did with it, or hit No.'; }
+    else { input.value = r.text; note.innerHTML = `Polished for ATS ✓ — edit if anything isn’t true. <span class="link" data-orig="${esc(raw)}">Use my exact words instead</span>`; }
+  } catch { note.textContent = 'Couldn’t polish it — your words are kept as-is.'; }
+  input.disabled = false; btn.classList.remove('busy');
+}
+$('#viewSetup').addEventListener('click', async (e) => {
+  const b = e.target.closest('button[data-v]'), u = e.target.closest('[data-undo]'), f = e.target.closest('[data-flip]'),
+        rm = e.target.closest('[data-remove]'), rs = e.target.closest('[data-restore]');
+  let verdict, skill;
+  if (b) { verdict = b.dataset.v; skill = b.closest('.q').dataset.skill; }
+  else if (u) { verdict = 'not'; skill = u.dataset.undo; }
+  else if (f) { verdict = 'have'; skill = f.dataset.flip; }
+  else if (rm) { verdict = 'not'; skill = rm.closest('.evrow').dataset.skill; }
+  else if (rs) { verdict = 'undo'; skill = rs.closest('.evrow').dataset.skill; }
+  else return;
+  await post(`/api/skills/${verdict}`, { skill }); taps++; scheduleRebuild(); loadSetup();
+});
+$('#viewSetup').addEventListener('keydown', async (e) => {
+  if (e.key !== 'Enter' || !e.target.matches('[data-stmt]')) return;
+  await post('/api/statement', { skill: e.target.closest('.evrow').dataset.skill, text: e.target.value });
+  toast('Saved — it’ll appear as a bullet on your resumes.'); taps++; scheduleRebuild(); loadSetup();
+});
+$('#viewSetup').addEventListener('change', async (e) => {
+  const el = e.target.closest('[data-k]'); if (!el) return;
+  await post('/api/profile', { [el.dataset.k]: el.value }); toast('Saved'); setupBadge();
+});
+
+load(); poll();
+</script>
+</body>
+</html>

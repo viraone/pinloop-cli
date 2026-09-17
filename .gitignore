@@ -1,7 +1,13 @@
 node_modules/
 dist/
 *.tgz
+.DS_Store
+__pycache__/
+*.pyc
 daily/.venv/
 daily/logs/
 daily/state.json
 daily/background.txt
+daily/profile.json
+daily/resume.json
+daily/skills.json
