@@ -19,7 +19,7 @@ from pathlib import Path
 from playwright.sync_api import sync_playwright
 
 HERE = Path(__file__).parent
-PROFILE_DIR = Path.home() / "Desktop" / "pinloop-jobs" / ".browser-profile"
+PROFILE_DIR = Path.home() / "pinloop-jobs" / ".browser-profile"
 RESUME_WORDS = re.compile(r"resume|résumé|\bcv\b|curriculum", re.I)
 COVER_WORDS = re.compile(r"cover\s*letter|other\s*attachment|transcript|portfolio", re.I)
 

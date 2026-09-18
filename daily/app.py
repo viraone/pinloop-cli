@@ -21,9 +21,9 @@ import tailor
 
 HERE = Path(__file__).parent
 PY = HERE / ".venv" / "bin" / "python"
-OUT = Path.home() / "Desktop" / "pinloop-jobs"
+OUT = Path.home() / "pinloop-jobs"
 INDEX = OUT / "jobs.json"
-SHEET = Path.home() / "Desktop" / "pinloop-jobs.xlsx"
+SHEET = Path.home() / "pinloop-jobs.xlsx"
 PORT = 5177
 
 app = Flask(__name__, static_folder=None)

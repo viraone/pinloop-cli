@@ -25,8 +25,10 @@ HERE = Path(__file__).parent
 REPO = HERE.parent
 PINLOOP = ["node", str(REPO / "dist" / "cli" / "pinloop.js")]
 STATE = HERE / "state.json"
-OUT = Path.home() / "Desktop" / "pinloop-jobs"
-SHEET = Path.home() / "Desktop" / "pinloop-jobs.xlsx"
+# In the home folder, not on the Desktop: macOS privacy rules stop the 5:30 PM launchd job
+# from reading or writing anything under ~/Desktop, so from there it could never run.
+OUT = Path.home() / "pinloop-jobs"
+SHEET = Path.home() / "pinloop-jobs.xlsx"
 INDEX = OUT / "jobs.json"
 
 TITLE = ("manual QA OR manual test OR manual tester OR manual testing OR QA analyst OR QA tester "
@@ -437,7 +439,7 @@ def main() -> None:
             old[0] if old and old[0] else today,
             company, title, jobs[pid]["location"], jobs[pid]["posted"], jobs[pid]["source"],
             rep["ats_score"], tailored, v.get("verdict", ""), v.get("reasoning", ""),
-            str(pdf.relative_to(Path.home() / "Desktop")), jobs[pid]["url"], jobs[pid]["status"], pid,
+            str(pdf.relative_to(Path.home())), jobs[pid]["url"], jobs[pid]["status"], pid,
         ]
         log(f"  {rep['ats_score']:>3} → {tailored:>3}  {v.get('verdict', '-'):6} {company} — {title}")
         top_missing = [h["posting_spelling"] for h in rep["ats_missing"] if h["kind"] != "soft"][:6]
