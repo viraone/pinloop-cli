@@ -109,7 +109,15 @@ def pull(state: dict, source: str, limit: int, priority: bool = False, held: set
         if answer.get("refused"):
             log(f"  refused: {answer['refused'].splitlines()[0]}")
             break
-        fresh = [r for r in rows if r["id"] not in held and not r.get("already_had")]
+        fresh = []
+        for r in rows:
+            if r["id"] in held or r.get("already_had"):
+                continue
+            fixture = not_hiring(r)
+            if fixture:
+                log(f"  not a real opening, skipped: {r.get('company')} — {r.get('title')} ({fixture})")
+                continue
+            fresh.append(r)
         for r in fresh:
             r["_source"] = source
             held.add(r["id"])
@@ -188,9 +196,67 @@ def judge(ids: list[str], again: bool = False) -> None:
     run("judge", *ids, *extra, "--confirm", token)
 
 
+def judge_targets(ids: list[str], by_id: dict[str, dict], scores: dict[str, dict],
+                  have: dict[str, dict], top: int) -> tuple[list[str], dict[str, str]]:
+    """The postings worth paying a judgment for, and why each of the rest goes without.
+
+    A judgment buys a verdict for a role, not for a URL, so a role posted twice must not buy
+    it twice: one best-scoring stand-in per role competes for the day's slots. A row goes
+    without because its stand-in was judged instead ("duplicate") or because the role itself
+    lost the slice ("cut") -- never assumed, so the app can say which it was."""
+    want = [i for i in sorted(ids, key=lambda i: -scores[i]["ats_score"]) if i not in have]
+    stand_in: dict[tuple[str, str], str] = {}
+    for i in want:
+        stand_in.setdefault(role_key(by_id[i]), i)
+    picked = list(stand_in.values())[:top]
+    why = {}
+    for i in want:
+        if i not in picked:
+            why[i] = "duplicate" if stand_in[role_key(by_id[i])] in picked else "cut"
+    return picked, why
+
+
 def folder_name(s: str) -> str:
     """A folder name a person reads: the company or title itself, minus what a filesystem refuses."""
     return re.sub(r"[\\/:*?\"<>|]+", "-", s).strip(" .")[:80] or "Untitled"
+
+
+# Boards that exist to exercise an integration rather than to hire. Their postings score and
+# tailor like real ones, which is the trouble: the resume work looks done and Apply leads nowhere.
+# Judged only on the board token an applicant tracker puts in the URL, where names are concatenated
+# and the signal is strong. Company names are left alone on purpose: matching those caught nothing
+# real and cost false positives, since Sandboxx and Testlio are employers and "test" is this
+# feed's whole subject.
+ATS_BOARD = re.compile(r"(?:greenhouse\.io|lever\.co|ashbyhq\.com|workable\.com"
+                       r"|smartrecruiters\.com|myworkdayjobs\.com)/(?:embed/job_app\?for=)?"
+                       r"([A-Za-z0-9_-]+)", re.I)
+# "sandbox" must end the word: builtinintegrationsandbox is a fixture, Sandboxx is an employer.
+FIXTURE = re.compile(r"sandbox(?![a-z0-9])|sandpit|integration-?test|\bdemo\b", re.I)
+
+
+def not_hiring(row: dict) -> str:
+    """Why a posting is a fixture rather than a job, or "" when it looks like a real opening."""
+    for field in ("url", "posting_url"):
+        board = ATS_BOARD.search(str(row.get(field) or ""))
+        if board and FIXTURE.search(board.group(1)):
+            return f"board {board.group(1).lower()!r}"
+    return ""
+
+
+def role_key(row: dict) -> tuple[str, str]:
+    """Company and title folded together; two postings sharing it are one opening advertised twice."""
+    company = str(row.get("company") or "").strip().casefold()
+    title = tailor.clean_title(str(row.get("title") or "")).strip().casefold()
+    return company, title
+
+
+def posting_stamp(row: dict) -> str:
+    """Six stable characters telling apart two postings a company gave the same title.
+
+    Taken from the posting itself, never from the score: a keyword fingerprint would move
+    every time the base resume changes, and every stored resume path would go stale with it."""
+    seed = str(row.get("url") or row.get("posting_url") or row.get("id") or "")
+    return hashlib.sha256(seed.encode()).hexdigest()[:6]
 
 
 def load_index() -> dict[str, dict]:
@@ -289,8 +355,17 @@ def main() -> None:
             short = want - len(new_rows)
             if short <= 0:
                 break
-            new_rows += pull(state, src, short, priority=prio, held=held)
+            got = pull(state, src, short, priority=prio, held=held)
+            # pull() works off a copy, so what it just took has to be fed back in by hand;
+            # without this a posting carried by both sources is pulled, scored and tailored twice.
+            held.update(r["id"] for r in got)
+            new_rows += got
         STATE.write_text(json.dumps(state, indent=1))
+
+    real = [r for r in new_rows if not not_hiring(r)]
+    if len(real) < len(new_rows):
+        log(f"{len(new_rows) - len(real)} posting(s) from a test board left out")
+        new_rows = real
 
     if not new_rows:
         log("nothing new today")
@@ -306,13 +381,25 @@ def main() -> None:
     if args.rejudge:
         stale = [i for i in ids if i in have and parse_reasoning(have[i].get("reasoning", ""))["odds"] is None]
         judge(stale, again=True)
+    # Why a posting has no recruiter's read, so the app can say which it is instead of guessing.
+    why_unjudged: dict[str, str] = {}
     if not args.no_pull:
-        best = sorted(ids, key=lambda i: -base_scores[i]["ats_score"])
-        judge([i for i in best if i not in have][: args.judge_top])
+        by_id = {r["id"]: r for r in new_rows}
+        picked, why_unjudged = judge_targets(ids, by_id, base_scores, have, args.judge_top)
+        twins = sum(1 for w in why_unjudged.values() if w == "duplicate")
+        if twins:
+            log(f"{twins} duplicate posting(s) of a role being judged; not paying for that verdict twice")
+        judge(picked)
     verdicts = stored_verdicts()
 
     wb, rows = load_sheet()
     jobs = load_index()
+    for pid, j in list(jobs.items()):
+        fixture = not_hiring(j)
+        if fixture:
+            del jobs[pid]
+            rows.pop(pid, None)
+            log(f"dropped from the dashboard, not a real opening: {j['company']} — {j['title']} ({fixture})")
     for r in new_rows:
         pid = r["id"]
         rep = base_scores.get(pid)
@@ -320,18 +407,24 @@ def main() -> None:
             continue
         company = str(r.get("company") or "")
         title = tailor.clean_title(str(r.get("title") or ""))
-        folder = OUT / folder_name(company) / folder_name(title)
+        folder = OUT / folder_name(company) / f"{folder_name(title)} ({posting_stamp(r)})"
         pdf, txt = tailor.build(r, rep, folder, tailor.resume_name())
         tailored = ats([pid], txt).get(pid, {}).get("ats_score")
         v = verdicts.get(pid, {})
         old = rows.get(pid)
         prior = jobs.get(pid, {})
+        if v.get("verdict"):
+            why = ""
+        elif args.no_pull:
+            why = prior.get("why_unjudged") or "rebuild"
+        else:
+            why = why_unjudged.get(pid, "")
         jobs[pid] = {
             "id": pid, "added": prior.get("added") or today, "company": company, "title": title,
             "location": ", ".join(r.get("locations") or r.get("countries") or []),
             "posted": str(r.get("posted_at") or "")[:10], "source": r.get("_source") or prior.get("source", ""),
             "ats_base": rep["ats_score"], "ats_tailored": tailored,
-            "verdict": v.get("verdict", ""), "reasoning": v.get("reasoning", ""),
+            "verdict": v.get("verdict", ""), "reasoning": v.get("reasoning", ""), "why_unjudged": why,
             **parse_reasoning(v.get("reasoning", "")),
             "matched": [{"k": tailor.label_for(h), "r": h["resume"], "p": h["posting"], "kind": h["kind"]} for h in rep["ats_matched"]],
             "missing": [{"k": tailor.label_for(h), "p": h["posting"], "kind": h["kind"]} for h in rep["ats_missing"]],

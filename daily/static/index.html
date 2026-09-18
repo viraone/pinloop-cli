@@ -156,6 +156,12 @@ const esc = (s) => String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&l
 const toast = (t) => { const el = $('#toast'); el.textContent = t; el.classList.add('show'); setTimeout(() => el.classList.remove('show'), 2800); };
 const col = (n) => n >= 70 ? 'var(--good)' : n >= 50 ? 'var(--ok)' : 'var(--bad)';
 const CALL = { strong: 'Apply', fair: 'Worth applying', weak: 'Long shot', no: 'Skip', none: 'Not judged yet' };
+/* Why a posting has no recruiter's read. Keyed by what the run recorded, never guessed from the score. */
+const NO_READ = {
+  cut: 'Only the 3 best-matching jobs each day get the recruiter’s read; this one didn’t make the cut, so go by the match % alone.',
+  duplicate: 'The same role was posted more than once, and the recruiter’s read was bought once for its twin. Open Details to compare, and go by the match % alone.',
+  rebuild: 'This came from postings already on your account rather than a daily pull, so it was never up for a recruiter’s read. Go by the match % alone.',
+};
 let postingsLeft = null, showSkips = false;
 
 /* ---------- tabs ---------- */
@@ -194,7 +200,9 @@ function statusLine(d, running) {
 function job(j) {
   const score = j.ats_tailored ?? j.ats_base ?? 0, v = j.verdict || 'none';
   const hard = (a) => (a || []).filter(x => x.kind !== 'soft');
-  const read = j.summary ? j.summary.split('\n')[0] : (j.reasoning ? j.reasoning.split(/(?<=\.)\s/)[0] : 'Only the 3 best-matching jobs each day get the recruiter’s read; this one didn’t make the cut, so go by the match % alone.');
+  const read = j.summary ? j.summary.split('\n')[0]
+    : j.reasoning ? j.reasoning.split(/(?<=\.)\s/)[0]
+    : NO_READ[j.why_unjudged] || 'No recruiter’s read on this one, so go by the match % alone.';
   return `<div class="job ${j.status === 'Applied' ? 'applied' : ''}" data-id="${j.id}">
     <div class="match"><div class="pct" style="color:${col(score)}">${score}%</div><small>resume match</small>
       ${j.odds != null ? `<div class="pct" style="font-size:18px;margin-top:10px;color:${col(j.odds)}">${j.odds}%</div><small>callback odds</small>` : ''}</div>
