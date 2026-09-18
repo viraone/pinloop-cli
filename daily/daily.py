@@ -416,7 +416,9 @@ def main() -> None:
         if v.get("verdict"):
             why = ""
         elif args.no_pull:
-            why = prior.get("why_unjudged") or "rebuild"
+            # A row first seen in a rebuild genuinely never went up for judging. One carried over
+            # from before this field existed is simply unknown, and says so rather than guessing.
+            why = prior.get("why_unjudged") or ("" if prior else "rebuild")
         else:
             why = why_unjudged.get(pid, "")
         jobs[pid] = {
